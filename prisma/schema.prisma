@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CONSUMER
+  PHARMACY_OWNER
+  MODERATOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+  DELETED
+}
+
+enum SubscriptionPlanType {
+  FREE
+  BASIC
+  PREMIUM
+  ENTERPRISE
+}
+
+enum SubscriptionPlanStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+  TRIAL
+}
+
+model User {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  // details
+  email          String        @unique @db.VarChar(50)
+  passwordHashed String        @db.VarChar(255)
+  role           Role          @default(CONSUMER)
+  isVerified     Boolean       @default(false)
+  accountStatus  AccountStatus @default(PENDING_VERIFICATION)
+
+  // timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // relations
+  profile      Profile?
+  refreshToken RefreshToken?
+  pharmacy     Pharmacy?
+
+  @@map("users")
+}
+
+model Profile {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  // details
+  fullName  String  @db.VarChar(100)
+  avatarURL String?
+  nidNumber String  @unique @db.VarChar(20)
+
+  // relations
+  userId String @unique @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  // time stamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("profiles")
+}
+
+model RefreshToken {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  // details
+  tokenHash String @unique @db.VarChar(500)
+
+  // relations
+  userId String @unique @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  // timestamps
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model Pharmacy {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  // details
+  name           String        @db.VarChar(100)
+  logo           String?       @db.VarChar(150)
+  address        String        @db.VarChar(150)
+  latitude       Float?
+  longitude      Float?
+  drugLicenseURL String        @db.VarChar(150)
+  isVerified     Boolean       @default(false)
+  status         AccountStatus @default(PENDING_VERIFICATION)
+
+  // relations
+  ownerId      String        @unique @db.Uuid
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  subscription Subscription?
+
+  // timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("pharmacies")
+}
+
+model Subscription {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  // details
+  status             SubscriptionPlanStatus @default(TRIAL)
+  planType           SubscriptionPlanType   @default(FREE)
+  currentPeriodStart DateTime               @default(now())
+  currentPeriodEnd   DateTime?
+  trialEndsAt        DateTime?
+  autoRenew          Boolean                @default(true)
+  cancelledAt        DateTime?
+  lastPaymentAt      DateTime?
+  nextPaymentAt      DateTime?
+
+  // relations one to one
+  pharmacyId String   @unique @db.Uuid
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  // timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("subscriptions")
+}
