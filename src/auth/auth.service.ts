@@ -1,8 +1,8 @@
-import { CryptoService } from '@/common/services/crypto/crypto.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
+import { CryptoService } from './../common/services/crypto/crypto.service';
 import { authResponseDTO } from './dto/authResponse.dto';
 import { RegisterDto } from './dto/register.dto';
 
@@ -22,7 +22,7 @@ export class AuthService {
       where: { email },
     });
 
-    if (!existingUser) {
+    if (existingUser) {
       throw new ConflictException({
         status: 'fail',
         statusCode: 409,
@@ -32,7 +32,7 @@ export class AuthService {
       });
     }
 
-    const passwordHashed = this.cryptoService.encrypt(password);
+    const passwordHashed = await this.cryptoService.hash(password);
 
     console.log(passwordHashed);
     // await this.prisma.user.create({
