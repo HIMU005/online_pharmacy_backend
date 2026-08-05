@@ -7,14 +7,21 @@ import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
 import { CryptoService } from './common/services/crypto/crypto.service';
 import { CryptoModule } from './common/services/crypto/crypto.module';
+import { EmailModule } from './common/services/email/email.module';
+import { OtpService } from './common/services/otp/otp.service';
+import { OtpModule } from './common/services/otp/otp.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     CryptoModule,
+    EmailModule,
+    OtpModule,
+    AuthModule,
   ],
   controllers: [AppController, AuthController],
-  providers: [AppService, AuthService, CryptoService],
+  providers: [AppService, AuthService, CryptoService, OtpService],
 })
 export class AppModule {}

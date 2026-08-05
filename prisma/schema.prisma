@@ -36,6 +36,13 @@ enum SubscriptionPlanStatus {
   TRIAL
 }
 
+enum OTPType {
+  VERIFICATION
+  PASSWORD_RESET
+  LOGIN
+  EMAIL_CHANGE
+}
+
 model User {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
@@ -56,6 +63,19 @@ model User {
   pharmacy     Pharmacy?
 
   @@map("users")
+}
+
+model OTP {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email     String
+  code      String
+  type      OTPType
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email, type])
+  @@index([expiresAt])
 }
 
 model Profile {
