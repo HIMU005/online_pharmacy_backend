@@ -1,3 +1,4 @@
+import { VerifyOtpDto } from '@/common/services/otp/dto/verify-otp.dto';
 import { OtpService } from '@/common/services/otp/otp.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { ConflictException, Injectable } from '@nestjs/common';
@@ -15,7 +16,7 @@ export class AuthService {
     private readonly otpService: OtpService,
   ) {}
 
-  //   Register
+  // !  Register
   async registerANewUser(registerDto: RegisterDto) {
     const { email, password } = registerDto;
 
@@ -58,5 +59,25 @@ export class AuthService {
       statusCode: 201,
       message: 'User created successfully',
     });
+  }
+
+  async verifyEmail(verifyOtpDto: VerifyOtpDto) {
+    const { email } = verifyOtpDto;
+
+    // * verify OTP
+    await this.otpService.VerifyOtp(verifyOtpDto);
+
+    await this.prisma.user.update({
+      where: { email },
+      data: {
+        isVerified: true,
+      },
+    });
+
+    return {
+      status: 'success',
+      statusCode: 200,
+      message: 'Email verified successfully',
+    };
   }
 }

@@ -1,9 +1,14 @@
 import { PrismaService } from '@/prisma/prisma.service';
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { randomInt } from 'crypto';
 import { CryptoService } from '../crypto/crypto.service';
 import { EmailService } from '../email/email.service';
 import { GenerateOtpDto } from './dto/generate-otp.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
 
 @Injectable()
 export class OtpService {
@@ -89,6 +94,68 @@ export class OtpService {
       statusCode: 200,
       message: 'OTP sent successfully.',
       expiresIn: this.OTP_EXPIRY_MINUTES * 60,
+    };
+  }
+
+  async VerifyOtp(verifyOtpDto: VerifyOtpDto): Promise<{
+    status: string;
+    statusCode: number;
+    email: string;
+    verified: boolean;
+    message: string;
+  }> {
+    const { email, code } = verifyOtpDto;
+
+    // find the latest valid OPT
+    const otpRecord = await this.prisma.oTP.findFirst({
+      where: {
+        email,
+        used: false,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (!otpRecord) {
+      throw new BadRequestException({
+        status: 'fail',
+        statusCode: 400,
+        errorCode: 'OTP_NOT_FOUND',
+        message: 'No valid OTP found. Please request a new one.',
+      });
+    }
+
+    // *Compare plain OTP with hashed OTP
+    const isValid = await this.cryptoService.compare(code, otpRecord.code);
+    if (!isValid) {
+      throw new BadRequestException({
+        status: 'fail',
+        statusCode: 400,
+        errorCode: 'OTP_INVALID',
+        message: 'Invalid OTP code.',
+      });
+    }
+
+    // Mark OTP as used
+    await this.prisma.oTP.update({
+      where: {
+        id: otpRecord.id,
+      },
+      data: {
+        used: true,
+      },
+    });
+
+    return {
+      status: 'success',
+      statusCode: 200,
+      message: 'OTP verified successfully.',
+      email,
+      verified: true,
     };
   }
 }
