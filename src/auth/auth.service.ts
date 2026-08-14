@@ -2,7 +2,7 @@ import { VerifyOtpDto } from '@/common/services/otp/dto/verify-otp.dto';
 import { OtpService } from '@/common/services/otp/otp.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { ConflictException, Injectable } from '@nestjs/common';
-import { OTPType } from '@prisma/client';
+import { AccountStatus, OTPType } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { CryptoService } from './../common/services/crypto/crypto.service';
 import { authResponseDTO } from './dto/authResponse.dto';
@@ -71,9 +71,11 @@ export class AuthService {
       where: { email },
       data: {
         isVerified: true,
+        accountStatus: AccountStatus.ACTIVE,
       },
     });
-
+    /* //TODO ADD OPT DELETE AFTER USED
+     */
     return {
       status: 'success',
       statusCode: 200,
