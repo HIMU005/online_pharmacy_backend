@@ -11,6 +11,8 @@ import { EmailModule } from './common/services/email/email.module';
 import { OtpService } from './common/services/otp/otp.service';
 import { OtpModule } from './common/services/otp/otp.module';
 import { AuthModule } from './auth/auth.module';
+import { JwtService } from './jwt/jwt.service';
+import { JwtModule } from './jwt/jwt.module';
 
 @Module({
   imports: [
@@ -20,8 +22,9 @@ import { AuthModule } from './auth/auth.module';
     EmailModule,
     OtpModule,
     AuthModule,
+    JwtModule,
   ],
   controllers: [AppController, AuthController],
-  providers: [AppService, AuthService, CryptoService, OtpService],
+  providers: [AppService, AuthService, CryptoService, OtpService, JwtService],
 })
 export class AppModule {}

@@ -23,6 +23,10 @@ describe('AuthService', () => {
           provide: OtpService,
           useValue: {},
         },
+        {
+          provide: AuthService,
+          useValue: {},
+        },
       ],
     }).compile();
 

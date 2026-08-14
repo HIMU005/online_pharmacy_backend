@@ -1,11 +1,17 @@
 import { VerifyOtpDto } from '@/common/services/otp/dto/verify-otp.dto';
 import { OtpService } from '@/common/services/otp/otp.service';
+import { JwtService } from '@/jwt/jwt.service';
 import { PrismaService } from '@/prisma/prisma.service';
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AccountStatus, OTPType } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { CryptoService } from './../common/services/crypto/crypto.service';
 import { authResponseDTO } from './dto/authResponse.dto';
+import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
@@ -14,6 +20,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly cryptoService: CryptoService,
     private readonly otpService: OtpService,
+    private readonly jwtTokenService: JwtService,
   ) {}
 
   // !  Register
@@ -80,6 +87,46 @@ export class AuthService {
       status: 'success',
       statusCode: 200,
       message: 'Email verified successfully',
+    };
+  }
+
+  async loginAUser(logindto: LoginDto) {
+    const { email, password } = logindto;
+    // * Find user
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const isPasswordValid = await this.cryptoService.compare(
+      password,
+      user.passwordHashed,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    // * JWT payload
+    const accessToken = await this.jwtTokenService.generateAccessToken({
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    const refreshToken = await this.jwtTokenService.generateRefreshToken({
+      sub: user.id,
+    });
+
+    // const accessToken = await this.
+
+    return {
+      message: 'Login successful',
+      accessToken,
+      refreshToken,
     };
   }
 }
