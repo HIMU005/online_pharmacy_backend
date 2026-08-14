@@ -111,17 +111,31 @@ export class AuthService {
     }
 
     // * JWT payload
+    // ! generate access token
     const accessToken = await this.jwtTokenService.generateAccessToken({
       sub: user.id,
       email: user.email,
       role: user.role,
     });
 
+    //  ! generate refresh token
     const refreshToken = await this.jwtTokenService.generateRefreshToken({
       sub: user.id,
     });
 
-    // const accessToken = await this.
+    // ! hash the refresh token for store
+    const refreshtokenHash = await this.cryptoService.hash(refreshToken);
+
+    // * save the refresh token in db
+    await this.prisma.refreshToken.create({
+      data: {
+        tokenHash: refreshtokenHash,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    // * return the login response
 
     return {
       message: 'Login successful',
