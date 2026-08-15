@@ -43,39 +43,73 @@ enum OTPType {
   EMAIL_CHANGE
 }
 
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  READY_FOR_PICKUP
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+enum MedicineUnit {
+  TABLET
+  CAPSULE
+  SYRUP
+  INJECTION
+  CREAM
+  DROPS
+  OTHER
+}
+
 model User {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
   // details
-  email          String        @unique @db.VarChar(50)
-  passwordHashed String        @db.VarChar(255)
-  role           Role          @default(CONSUMER)
-  isVerified     Boolean       @default(false)
-  accountStatus  AccountStatus @default(PENDING_VERIFICATION)
+  email          String  @unique @db.VarChar(100)
+  phone          String? @unique @db.VarChar(20)
+  passwordHashed String  @db.VarChar(255)
+
+  role          Role          @default(CONSUMER)
+  isVerified    Boolean       @default(false)
+  accountStatus AccountStatus @default(PENDING_VERIFICATION)
 
   // timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // relations
-  profile      Profile?
-  refreshToken RefreshToken?
-  pharmacy     Pharmacy?
+  profile       Profile?
+  refreshToken  RefreshToken?
+  pharmacy      Pharmacy?
+  prescriptions Prescription[]
+  orders        Order[]
+  ratings       Rating[]
+  otps          OTP[]
 
+  @@index([role])
+  @@index([accountStatus])
   @@map("users")
 }
 
 model OTP {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email     String
-  code      String
+  email     String   @db.VarChar(100)
+  isUsed    Boolean  @default(false)
+  code      String   @db.VarChar(6)
   type      OTPType
   expiresAt DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // ? relations
+  userId String? @db.Uuid
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([email, type])
+  @@index([userId])
   @@index([expiresAt])
+  @@map("otps")
 }
 
 model Profile {
@@ -83,8 +117,8 @@ model Profile {
 
   // details
   fullName  String  @db.VarChar(100)
-  avatarURL String?
-  nidNumber String  @unique @db.VarChar(20)
+  avatarURL String? @db.VarChar(255)
+  nidNumber String? @unique @db.VarChar(20)
 
   // relations
   userId String @unique @db.Uuid
@@ -121,12 +155,14 @@ model Pharmacy {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
   // details
-  name           String        @db.VarChar(100)
+  name           String        @db.VarChar(150)
   logo           String?       @db.VarChar(150)
-  address        String        @db.VarChar(150)
+  address        String        @db.VarChar(255)
+  phone          String?       @db.VarChar(20)
+  description    String?       @db.Text
   latitude       Float?
   longitude      Float?
-  drugLicenseURL String        @db.VarChar(150)
+  drugLicenseURL String        @db.VarChar(255)
   isVerified     Boolean       @default(false)
   status         AccountStatus @default(PENDING_VERIFICATION)
 
@@ -134,11 +170,17 @@ model Pharmacy {
   ownerId      String        @unique @db.Uuid
   owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   subscription Subscription?
+  medicines    Medicine[]
+  timeSlots    TimeSlot[]
+  orders       Order[]
+  ratings      Rating[]
 
   // timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([status])
+  @@index([isVerified])
   @@map("pharmacies")
 }
 
@@ -165,4 +207,161 @@ model Subscription {
   updatedAt DateTime @updatedAt
 
   @@map("subscriptions")
+}
+
+// *====================== PRESCRIPTION ======================
+model Prescription {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  title        String    @db.VarChar(150)
+  fileURL      String    @db.VarChar(255)
+  notes        String?   @db.Text
+  prescribedAt DateTime?
+
+  // Owner (Consumer )
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  // Relations
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("prescriptions")
+}
+
+// *====================== MEDICINE (Inventory per Pharmacy) ======================
+model Medicine {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String       @db.VarChar(150)
+  genericName String?      @db.VarChar(150)
+  description String?      @db.Text
+  unit        MedicineUnit @default(TABLET)
+  price       Decimal      @db.Decimal(10, 2)
+  stock       Int          @default(0)
+  expiryDate  DateTime?
+  isActive    Boolean      @default(true)
+
+  //?Tenant
+  pharmacyId String   @db.Uuid
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  // ? Relations
+  orderItems OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pharmacyId])
+  @@index([name])
+  @@map("medicines")
+}
+
+// *====================== TIME SLOT ======================
+model TimeSlot {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  date      DateTime @db.Date
+  startTime String   @db.VarChar(5)
+  endTime   String   @db.VarChar(5)
+  capacity  Int      @default(1)
+  isActive  Boolean  @default(true)
+
+  // ? Tenant
+  pharmacyId String   @db.Uuid
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  // ?Relations
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pharmacyId, date])
+  @@map("time_slots")
+}
+
+//* ====================== ORDER (Booking) ======================
+model Order {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  orderNumber     String      @unique @db.VarChar(20)
+  status          OrderStatus @default(PENDING)
+  totalAmount     Decimal     @db.Decimal(10, 2)
+  notes           String?     @db.Text
+  rejectionReason String?     @db.Text
+
+  // Pickup info
+  pickupDate DateTime? @db.Date
+
+  // Relations
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  pharmacyId String   @db.Uuid
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  prescriptionId String?       @db.Uuid
+  prescription   Prescription? @relation(fields: [prescriptionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  timeSlotId String?   @db.Uuid
+  timeSlot   TimeSlot? @relation(fields: [timeSlotId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  orderItems OrderItem[]
+  rating     Rating?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([pharmacyId])
+  @@index([status])
+  @@map("orders")
+}
+
+// *====================== ORDER ITEM ======================
+model OrderItem {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  quantity Int
+  price    Decimal @db.Decimal(10, 2)
+
+  //? relations
+  orderId String @db.Uuid
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  medicineId String   @db.Uuid
+  medicine   Medicine @relation(fields: [medicineId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+// *====================== RATING ======================
+model Rating {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  score  Int
+  review String? @db.Text
+
+  // Relations
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  pharmacyId String   @db.Uuid
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+
+  orderId String @unique @db.Uuid
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pharmacyId])
+  @@map("ratings")
 }
