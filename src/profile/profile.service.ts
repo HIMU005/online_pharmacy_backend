@@ -65,6 +65,13 @@ export class ProfileService {
         userId,
       },
       data: updateProfileDto,
+      include: {
+        user: {
+          select: {
+            email: true,
+          },
+        },
+      },
     });
   }
 }
