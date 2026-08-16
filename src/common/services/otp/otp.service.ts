@@ -39,7 +39,7 @@ export class OtpService {
       where: {
         email,
         type,
-        used: false,
+        isUsed: false,
         createdAt: {
           gt: new Date(Date.now() - this.RESEND_COOLDOWN_SECONDS * 1000),
         },
@@ -69,10 +69,10 @@ export class OtpService {
       where: {
         email,
         type,
-        used: false,
+        isUsed: false,
       },
       data: {
-        used: true,
+        isUsed: true,
       },
     });
 
@@ -110,7 +110,7 @@ export class OtpService {
     const otpRecord = await this.prisma.oTP.findFirst({
       where: {
         email,
-        used: false,
+        isUsed: false,
         expiresAt: {
           gt: new Date(),
         },
@@ -146,7 +146,7 @@ export class OtpService {
         id: otpRecord.id,
       },
       data: {
-        used: true,
+        isUsed: true,
       },
     });
 

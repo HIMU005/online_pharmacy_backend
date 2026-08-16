@@ -126,14 +126,41 @@ export class AuthService {
     // ! hash the refresh token for store
     const refreshtokenHash = await this.cryptoService.hash(refreshToken);
 
-    // * save the refresh token in db
-    await this.prisma.refreshToken.create({
-      data: {
-        tokenHash: refreshtokenHash,
+    // ! Refresh token expiry
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    // Check existing refresh token
+    const existingRefreshToken = await this.prisma.refreshToken.findUnique({
+      where: {
         userId: user.id,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
+
+    // Delete existing token if expired
+    if (existingRefreshToken && existingRefreshToken.expiresAt <= new Date()) {
+      await this.prisma.refreshToken.delete({
+        where: {
+          userId: user.id,
+        },
+      });
+    }
+
+    // Check again before creating
+    const activeRefreshToken = await this.prisma.refreshToken.findUnique({
+      where: {
+        userId: user.id,
+      },
+    });
+
+    if (!activeRefreshToken) {
+      await this.prisma.refreshToken.create({
+        data: {
+          tokenHash: refreshtokenHash,
+          userId: user.id,
+          expiresAt,
+        },
+      });
+    }
 
     // * return the login response
 

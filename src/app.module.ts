@@ -8,6 +8,9 @@ import { CryptoModule } from './common/services/crypto/crypto.module';
 import { EmailModule } from './common/services/email/email.module';
 import { OtpModule } from './common/services/otp/otp.module';
 import { JwtTokenModule } from './jwt/jwt.module';
+import { ProfileController } from './profile/profile.controller';
+import { ProfileService } from './profile/profile.service';
+import { ProfileModule } from './profile/profile.module';
 
 @Module({
   imports: [
@@ -18,8 +21,9 @@ import { JwtTokenModule } from './jwt/jwt.module';
     OtpModule,
     AuthModule,
     JwtTokenModule,
+    ProfileModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [AppController, ProfileController],
+  providers: [AppService, ProfileService],
 })
 export class AppModule {}
